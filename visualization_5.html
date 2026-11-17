@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Platform Keywords</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; height: 100vh; overflow: hidden; }
+    header { background: white; padding: 6px 10px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    h1 { font-size: 12px; color: #333; }
+    .sub { font-size: 9px; color: #666; }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    .select { font-size: 10px; color: #555; }
+    .select select { font-size: 10px; padding: 2px 4px; border: 1px solid #ddd; border-radius: 3px; margin-left: 3px; }
+    .platform-tabs { display: flex; gap: 4px; }
+    .platform-tab { padding: 3px 10px; border: 1px solid #667eea; background: white; border-radius: 3px; cursor: pointer; font-size: 10px; color: #667eea; }
+    .platform-tab.active { background: #667eea; color: white; }
+    main { padding: 6px; height: calc(100vh - 32px); }
+    .card { background: white; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); height: 100%; padding: 6px; display: flex; flex-direction: column; }
+    .chart-container { flex: 1; min-height: 0; position: relative; }
+    #chart { width: 100%; height: 100%; }
+    .tooltip { position: fixed; background: white; border-radius: 6px; box-shadow: 0 3px 15px rgba(0,0,0,0.2); padding: 8px; max-width: 180px; z-index: 1000; }
+    .tooltip-title { font-weight: 600; font-size: 11px; color: #333; margin-bottom: 3px; }
+    .tooltip-body { font-size: 10px; color: #555; }
+    /* Hide scrollbars */
+    ::-webkit-scrollbar { display: none; }
+    * { scrollbar-width: none; -ms-overflow-style: none; }
+  
+    .mini-clouds{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;padding-top:12px;border-top:1px dashed #eee}
+    .mini-cloud{background:#fcfcfc;border:1px solid #f0f0f0;border-radius:12px;padding:10px;text-align:center}
+    .mini-title{font-size:12px;color:#666;margin-bottom:6px;font-weight:600}
+    .mini-cloud svg{width:100%;height:auto}
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Platform Keywords (TF-IDF)</h1>
+      <div class="sub">Higher = more platform-specific</div>
+    </div>
+    <div class="controls">
+      <div class="platform-tabs">
+        <button class="platform-tab active" data-p="comments">Comments</button>
+        <button class="platform-tab" data-p="weibo">Posts</button>
+        <button class="platform-tab" data-p="xiaohongshu">XHS</button>
+      </div>
+      <label class="select">Top:<select id="topN"><option>10</option><option selected>15</option><option>20</option></select></label>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="chart-container">
+        <svg id="chart"></svg>
+      </div>
+    </div>
+  </main>
+
+  <div id="tooltip" class="tooltip" style="display:none;">
+    <div class="tooltip-title"></div>
+    <div class="tooltip-body"></div>
+  </div>
+
+  <script>
+    const META = {
+      comments: { name: "Weibo Comments", color: "#ffb347" },
+      weibo: { name: "Weibo Posts", color: "#4267B2" },
+      xiaohongshu: { name: "Xiaohongshu", color: "#ff6b6b" }
+    };
+    const state = { data: {}, active: 'comments', topN: 15 };
+    
+    function draw() {
+      const svg = d3.select("#chart");
+      svg.selectAll("*").remove();
+      
+      const container = document.querySelector('.chart-container');
+      const W = Math.max(container.clientWidth, 200);
+      const H = Math.max(container.clientHeight, 100);
+      const margin = { top: 20, right: 60, bottom: 20, left: 80 };
+      
+      svg.attr("width", W).attr("height", H);
+      
+      const dataByP = Object.fromEntries(Object.entries(state.data).map(([source, words]) => [source, words.slice(0, state.topN)]));
+      const data = (dataByP[state.active] || []).slice().reverse();
+      
+      if (!data.length) {
+        svg.append("text").attr("x", W/2).attr("y", H/2).attr("text-anchor", "middle").attr("fill", "#666").attr("font-size", "12px").text("No data");
+        return;
+      }
+      
+      const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+      const innerW = Math.max(W - margin.left - margin.right, 50);
+      const innerH = Math.max(H - margin.top - margin.bottom, 50);
+      const maxV = (d3.max(data, d => d.score) || 1) * 1.05;
+      
+      const x = d3.scaleLinear().domain([0, maxV]).range([0, innerW]);
+      const y = d3.scaleBand().domain(data.map(d => d.word)).range([innerH, 0]).padding(0.2);
+      
+      // Grid
+      g.append("g").attr("transform", `translate(0,${innerH})`)
+       .call(d3.axisBottom(x).ticks(3).tickSize(-innerH).tickFormat(""))
+       .selectAll("line").attr("stroke", "#f0f0f0");
+      g.selectAll(".domain").remove();
+      
+      // Y axis
+      g.append("g").call(d3.axisLeft(y).tickSize(0)).selectAll("text").style("font-size", "10px");
+      // X axis
+      g.append("g").attr("transform", `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(3).tickFormat(d => d.toFixed(0))).selectAll("text").style("font-size", "9px");
+      
+      // Title
+      g.append("text").attr("x", -margin.left + 5).attr("y", -5).attr("fill", "#333").attr("font-size", "11px").attr("font-weight", 600)
+       .text(`${META[state.active].name} - TF-IDF`);
+      
+      // Bars
+      const bars = g.selectAll(".bar").data(data).join("g").attr("class", "bar");
+      bars.append("rect")
+        .attr("x", 0).attr("y", d => y(d.word)).attr("width", d => x(d.score)).attr("height", y.bandwidth())
+        .attr("fill", META[state.active].color).attr("opacity", 0.85).attr("rx", 3)
+        .on("mouseover", function(e, d) {
+          const tt = document.getElementById('tooltip');
+          tt.querySelector('.tooltip-title').textContent = d.word;
+          tt.querySelector('.tooltip-body').innerHTML = `TF-IDF: ${d.score.toFixed(1)}<br>Count: ${d.count}`;
+          tt.style.display = 'block';
+          const rect = tt.getBoundingClientRect();
+          let x = Math.min(e.clientX + 10, window.innerWidth - rect.width - 10);
+          let y = Math.min(e.clientY + 10, window.innerHeight - rect.height - 10);
+          tt.style.left = x + 'px';
+          tt.style.top = y + 'px';
+        })
+        .on("mouseout", () => document.getElementById('tooltip').style.display = 'none');
+      
+      // Values
+      bars.append("text")
+        .attr("x", d => x(d.score) + 4).attr("y", d => y(d.word) + y.bandwidth()/2)
+        .attr("dy", "0.35em").attr("fill", "#666").attr("font-size", "9px")
+        .text(d => d.score.toFixed(1));
+    }
+    
+    async function init() {
+      const { keywords } = await fetch('./term-statistics.json').then(response => response.json());
+      state.data = keywords;
+
+      document.querySelectorAll('.platform-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.platform-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          state.active = tab.dataset.p;
+          draw();
+        });
+      });
+      
+      document.getElementById('topN').addEventListener('change', (e) => {
+        state.topN = +e.target.value;
+        draw();
+      });
+
+      
+      
+      draw();
+      
+      const ro = new ResizeObserver(() => draw());
+      ro.observe(document.querySelector('.chart-container'));
+    }
+    
+    init();
+ 
+  </script>
+</body>
+</html>

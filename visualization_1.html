@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Platform Engagement Comparison</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fff; margin: 0; padding: 8px; height: 100%; overflow: hidden; }
+        .container { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+        h1 { text-align: center; color: #333; margin-bottom: 6px; font-size: 18px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 12px; font-size: 12px; }
+        .controls { background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+        .control-row { display: flex; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .control-row:last-child { margin-bottom: 0; }
+        .control-label { font-weight: 600; color: #333; min-width: 120px; }
+        .metric-btn { padding: 8px 16px; border: 2px solid #ddd; background: white; border-radius: 20px; cursor: pointer; transition: all 0.3s; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+        .metric-btn:hover { border-color: #667eea; transform: translateY(-2px); }
+        .metric-btn.selected { color: white; border-color: transparent; }
+        .color-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .action-btn { margin-left: auto; padding: 10px 20px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: transform 0.2s; }
+        .action-btn:hover { transform: scale(1.05); }
+        .chart-wrapper { background: #fafafa; border-radius: 8px; padding: 8px; position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+        .main-chart { position: relative; flex: 1; min-height: 0; }
+
+        .area-upper { opacity: 0.85; transition: all 0.3s; }
+        .area-lower { opacity: 0.5; transition: all 0.3s; }
+        .hover-line { stroke: #333; stroke-width: 1.5; stroke-dasharray: 5,5; opacity: 0; pointer-events: none; }
+        .tooltip { position: absolute; background: rgba(0,0,0,0.9); color: white; padding: 12px; border-radius: 8px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.2s; max-width: 320px; z-index: 100; }
+        .tooltip-section { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #444; }
+        .tooltip-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .tooltip-title { font-weight: 600; margin-bottom: 6px; color: #fff; }
+        .tooltip-row { margin: 4px 0; display: flex; justify-content: space-between; align-items: center; }
+        .tooltip-label { display: flex; align-items: center; gap: 6px; }
+        .tooltip-value { font-weight: 600; margin-left: 10px; }
+        .post-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .post-card { background: white; border-radius: 8px; padding: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+        .post-card h3 { font-size: 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+        .post-card.weibo h3 { color: #F6C63C; }
+        .post-card.xhs h3 { color: #B43970; }
+        .post-content { font-size: 13px; color: #333; line-height: 1.6; margin-bottom: 10px; max-height: 150px; overflow-y: auto; text-overflow: clip; }
+        .post-content.long-text { max-height: 200px; overflow-y: auto; }
+        .post-meta { font-size: 12px; color: #999; display: flex; gap: 15px; flex-wrap: wrap; }
+        .legend { display: flex; justify-content: center; gap: 20px; margin-top: 15px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; }
+        .axis-title { font-size: 12px; font-weight: 600; fill: #333; }
+        .zero-line { stroke: #333; stroke-width: 2; }
+
+        .reset-btn { padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 10px; }
+        .range-display { font-size: 13px; color: #666; margin-left: 15px; }
+        .selected-date-indicator { font-size: 14px; color: #667eea; font-weight: 600; margin-left: 10px; }
+        .clear-posts-btn { padding: 6px 12px; background: #999; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 10px; }
+        .clear-posts-btn:hover { background: #666; }
+        .instruction { font-size: 12px; color: #999; margin-top: 5px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Cross-Platform Engagement Comparison</h1>
+        <p class="subtitle">Demumu discussion on Weibo and Xiaohongshu</p>
+        <div class="controls">
+            <div class="control-row">
+                <span class="control-label">Select Metrics:</span>
+                <button class="metric-btn selected" data-metric="weibo_repost" style="--btn-color: #F6C63C;"><span class="color-dot" style="background: #F6C63C;"></span>Weibo Repost</button>
+                <button class="metric-btn selected" data-metric="weibo_comment" style="--btn-color: #EFA143;"><span class="color-dot" style="background: #EFA143;"></span>Weibo Comment</button>
+                <button class="metric-btn" data-metric="weibo_like" style="--btn-color: #D96558;"><span class="color-dot" style="background: #D96558;"></span>Weibo Like</button>
+                <button class="metric-btn selected" data-metric="xhs_死了么" style="--btn-color: #B43970;"><span class="color-dot" style="background: #B43970;"></span>死了么</button>
+                <button class="metric-btn" data-metric="xhs_Demumu" style="--btn-color: #69F7C0;"><span class="color-dot" style="background: #69F7C0;"></span>Demumu</button>
+                <button class="metric-btn selected" data-metric="xhs_独居安全" style="--btn-color: #282A62;"><span class="color-dot" style="background: #282A62;"></span>独居安全</button>
+                <button class="action-btn" onclick="toggleAll()">☑️ Select All</button>
+            </div>
+            <div class="control-row">
+                <span class="control-label">Configuration:</span>
+                <span id="config-text" style="color: #666; font-size: 13px;">Loading...</span>
+
+            </div>
+        </div>
+        <div class="chart-wrapper" id="chart-wrapper">
+            <div class="main-chart" id="main-chart"></div>
+
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+        <div class="legend">
+            <div class="legend-item"><span class="color-dot" style="background: #F6C63C;"></span><span>Weibo Repost</span></div>
+            <div class="legend-item"><span class="color-dot" style="background: #EFA143;"></span><span>Weibo Comment</span></div>
+            <div class="legend-item"><span class="color-dot" style="background: #D96558;"></span><span>Weibo Like</span></div>
+            <div class="legend-item"><span class="color-dot" style="background: #B43970;"></span><span>死了么</span></div>
+            <div class="legend-item"><span class="color-dot" style="background: #69F7C0;"></span><span>Demumu</span></div>
+            <div class="legend-item"><span class="color-dot" style="background: #282A62;"></span><span>独居安全</span></div>
+        </div>
+    </div>
+    <script>
+const fullData = [{"date": "2026-01-01", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 9063, "xhs_Demumu": 0, "xhs_独居安全": 226}, {"date": "2026-01-02", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 85020}, {"date": "2026-01-04", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 1701, "xhs_Demumu": 0, "xhs_独居安全": 554005}, {"date": "2026-01-05", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 41917, "xhs_Demumu": 0, "xhs_独居安全": 36000}, {"date": "2026-01-06", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 33556}, {"date": "2026-01-08", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 7}, {"date": "2026-01-09", "weibo_repost": 4, "weibo_comment": 23, "weibo_like": 20, "xhs_死了么": 3, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-10", "weibo_repost": 5506, "weibo_comment": 10387, "weibo_like": 64117, "xhs_死了么": 41314, "xhs_Demumu": 0, "xhs_独居安全": 152}, {"date": "2026-01-11", "weibo_repost": 7850, "weibo_comment": 12704, "weibo_like": 63470, "xhs_死了么": 11582, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-12", "weibo_repost": 4759, "weibo_comment": 8175, "weibo_like": 88879, "xhs_死了么": 33671, "xhs_Demumu": 17, "xhs_独居安全": 19785}, {"date": "2026-01-13", "weibo_repost": 3519, "weibo_comment": 3886, "weibo_like": 35659, "xhs_死了么": 4070, "xhs_Demumu": 893, "xhs_独居安全": 57464}, {"date": "2026-01-14", "weibo_repost": 4341, "weibo_comment": 7941, "weibo_like": 26263, "xhs_死了么": 27100, "xhs_Demumu": 9316, "xhs_独居安全": 245}, {"date": "2026-01-15", "weibo_repost": 575, "weibo_comment": 1596, "weibo_like": 5532, "xhs_死了么": 208, "xhs_Demumu": 127, "xhs_独居安全": 23}, {"date": "2026-01-16", "weibo_repost": 9, "weibo_comment": 48, "weibo_like": 184, "xhs_死了么": 4006, "xhs_Demumu": 438, "xhs_独居安全": 11073}, {"date": "2026-01-17", "weibo_repost": 0, "weibo_comment": 1, "weibo_like": 11, "xhs_死了么": 1132, "xhs_Demumu": 59, "xhs_独居安全": 0}, {"date": "2026-01-18", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 1, "xhs_死了么": 19957, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-19", "weibo_repost": 128, "weibo_comment": 88, "weibo_like": 425, "xhs_死了么": 9763, "xhs_Demumu": 0, "xhs_独居安全": 631}, {"date": "2026-01-20", "weibo_repost": 3, "weibo_comment": 9, "weibo_like": 57, "xhs_死了么": 27434, "xhs_Demumu": 19, "xhs_独居安全": 130}, {"date": "2026-01-21", "weibo_repost": 7, "weibo_comment": 25, "weibo_like": 82, "xhs_死了么": 1502, "xhs_Demumu": 47, "xhs_独居安全": 1677}, {"date": "2026-01-22", "weibo_repost": 16, "weibo_comment": 35, "weibo_like": 121, "xhs_死了么": 4080, "xhs_Demumu": 9, "xhs_独居安全": 527}, {"date": "2026-01-23", "weibo_repost": 5, "weibo_comment": 35, "weibo_like": 65, "xhs_死了么": 5801, "xhs_Demumu": 3, "xhs_独居安全": 15}, {"date": "2026-01-24", "weibo_repost": 0, "weibo_comment": 14, "weibo_like": 34, "xhs_死了么": 10558, "xhs_Demumu": 86, "xhs_独居安全": 8960}, {"date": "2026-01-25", "weibo_repost": 49, "weibo_comment": 45, "weibo_like": 135, "xhs_死了么": 201, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-26", "weibo_repost": 75, "weibo_comment": 26, "weibo_like": 83, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-27", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 3, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-28", "weibo_repost": 4, "weibo_comment": 43, "weibo_like": 79, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-29", "weibo_repost": 1, "weibo_comment": 0, "weibo_like": 3, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-30", "weibo_repost": 12, "weibo_comment": 21, "weibo_like": 160, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-01-31", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-01", "weibo_repost": 1, "weibo_comment": 1, "weibo_like": 6, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-02", "weibo_repost": 1, "weibo_comment": 3, "weibo_like": 8, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-03", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-04", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 2, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-05", "weibo_repost": 1, "weibo_comment": 1, "weibo_like": 3, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-06", "weibo_repost": 1, "weibo_comment": 7, "weibo_like": 5, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-07", "weibo_repost": 0, "weibo_comment": 1, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-08", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-09", "weibo_repost": 4, "weibo_comment": 2, "weibo_like": 7, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-10", "weibo_repost": 4, "weibo_comment": 3, "weibo_like": 42, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-11", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-12", "weibo_repost": 1, "weibo_comment": 6, "weibo_like": 3, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-13", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 1, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-14", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-15", "weibo_repost": 0, "weibo_comment": 5, "weibo_like": 7, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-16", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-17", "weibo_repost": 0, "weibo_comment": 1, "weibo_like": 2, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-19", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-20", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-21", "weibo_repost": 3, "weibo_comment": 3, "weibo_like": 5, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-23", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 0, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-24", "weibo_repost": 0, "weibo_comment": 0, "weibo_like": 1, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}, {"date": "2026-02-25", "weibo_repost": 2, "weibo_comment": 24, "weibo_like": 32, "xhs_死了么": 0, "xhs_Demumu": 0, "xhs_独居安全": 0}];
+
+const colors = {
+    'weibo_repost': '#F6C63C',
+    'weibo_comment': '#EFA143',
+    'weibo_like': '#D96558',
+    'xhs_死了么': '#B43970',
+    'xhs_Demumu': '#69F7C0',
+    'xhs_独居安全': '#282A62'
+};
+
+const metricNames = {
+    'weibo_repost': 'Weibo Repost',
+    'weibo_comment': 'Weibo Comment',
+    'weibo_like': 'Weibo Like',
+    'xhs_死了么': '死了么',
+    'xhs_Demumu': 'Demumu',
+    'xhs_独居安全': '独居安全'
+};
+
+const allMetrics = ['weibo_repost', 'weibo_comment', 'weibo_like', 'xhs_死了么', 'xhs_Demumu', 'xhs_独居安全'];
+        let currentData = [...fullData];
+        let selectedMetrics = ['weibo_repost', 'weibo_comment', 'xhs_死了么', 'xhs_独居安全'];
+        
+        // Fixed aspect ratio viewBox for consistent display
+        const viewBoxW = 1000, viewBoxH = 400;
+        const margin = { top: 40, right: 40, bottom: 50, left: 70 };
+        const width = viewBoxW - margin.left - margin.right;
+        const height = viewBoxH - margin.top - margin.bottom;
+        
+        // Create SVG with fixed viewBox that scales to fit container
+        const svg = d3.select('#main-chart').append('svg')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('viewBox', `0 0 ${viewBoxW} ${viewBoxH}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet')
+            .append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+        
+        const xScale = d3.scaleBand().range([0, width]).padding(0.1);
+        const yScale = d3.scaleLinear();
+        
+        const zeroLine = svg.append('line').attr('class', 'zero-line');
+        const xAxisGroup = svg.append('g').attr('transform', `translate(0,${height})`);
+        const yAxisGroup = svg.append('g');
+        
+        const tooltip = d3.select('#tooltip');
+        
+        const clickOverlay = svg.append('rect')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('fill', 'transparent')
+            ;
+        
+        // Listen to global time filter from dashboard
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'vis1-timeFilter') {
+                try {
+                    const dates = JSON.parse(e.newValue);
+                    if (dates && dates.length > 0) {
+                        const startDate = dates[0];
+                        const endDate = dates[dates.length - 1];
+                        currentData = fullData.filter(d => d.date >= startDate && d.date <= endDate);
+                        document.getElementById('config-text').textContent = 
+                            `Time range: ${startDate} to ${endDate} (${currentData.length} days)`;
+                    } else {
+                        currentData = [...fullData];
+                        document.getElementById('config-text').textContent = 'Showing all dates';
+                    }
+                    updateChart();
+                } catch (err) {
+                    console.error('Error parsing time filter:', err);
+                }
+            }
+        });
+        
+        function updateChart() {
+            xScale.domain(currentData.map(d => d.date));
+            
+            d3.selectAll('.metric-btn').each(function() {
+                const btn = d3.select(this);
+                const metric = btn.attr('data-metric');
+                const isSelected = selectedMetrics.includes(metric);
+                btn.classed('selected', isSelected);
+                btn.style('background-color', isSelected ? colors[metric] : 'white');
+                btn.style('color', isSelected ? 'white' : '#333');
+                btn.style('border-color', isSelected ? colors[metric] : '#ddd');
+            });
+            
+            const selectedNames = selectedMetrics.map(m => metricNames[m]).join(' + ');
+            const unselected = allMetrics.filter(m => !selectedMetrics.includes(m));
+            const unselectedNames = unselected.map(m => metricNames[m]).join(' + ') || 'None';
+            document.getElementById('config-text').textContent = `Upper: ${selectedNames} | Lower: ${unselectedNames}`;
+            
+            const upperMax = selectedMetrics.length > 0 ? d3.max(currentData, d => selectedMetrics.reduce((sum, m) => sum + d[m], 0)) || 1 : 1;
+            const lowerMax = unselected.length > 0 ? d3.max(currentData, d => unselected.reduce((sum, m) => sum + d[m], 0)) || 1 : 1;
+            const yMax = Math.max(upperMax, lowerMax);
+            yScale.domain([-yMax, yMax]).range([height, 0]);
+            
+            zeroLine.attr('x1', 0).attr('x2', width).attr('y1', yScale(0)).attr('y2', yScale(0));
+            svg.selectAll('.area-upper').remove();
+            svg.selectAll('.area-lower').remove();
+            
+            if (selectedMetrics.length > 0) {
+                const stackUpper = d3.stack().keys(selectedMetrics);
+                const upperStacked = stackUpper(currentData);
+                const areaUpper = d3.area().x(d => xScale(d.data.date) + xScale.bandwidth()/2).y0(d => yScale(d[0])).y1(d => yScale(d[1])).curve(d3.curveMonotoneX);
+                svg.selectAll('.area-upper').data(upperStacked).enter().append('path').attr('class', 'area-upper').attr('d', areaUpper).attr('fill', d => colors[d.key]);
+            }
+            
+            if (unselected.length > 0) {
+                const stackLower = d3.stack().keys(unselected);
+                const lowerStacked = stackLower(currentData);
+                const areaLower = d3.area().x(d => xScale(d.data.date) + xScale.bandwidth()/2).y0(d => yScale(-d[0])).y1(d => yScale(-d[1])).curve(d3.curveMonotoneX);
+                svg.selectAll('.area-lower').data(lowerStacked).enter().append('path').attr('class', 'area-lower').attr('d', areaLower).attr('fill', d => colors[d.key]);
+            }
+            
+            const allDates = xScale.domain();
+            let tickStep = 1;
+            if (allDates.length > 50) tickStep = 10;
+            else if (allDates.length > 30) tickStep = 5;
+            else if (allDates.length > 15) tickStep = 3;
+            else if (allDates.length > 8) tickStep = 2;
+            xAxisGroup.call(d3.axisBottom(xScale).tickFormat(d => d.slice(5)).tickValues(allDates.filter((d, i) => i % tickStep === 0)));
+            
+            yAxisGroup.call(d3.axisLeft(yScale).tickFormat(d => {
+                const absVal = Math.abs(d);
+                if (absVal >= 100000) return (absVal / 10000).toFixed(0) + 'w';
+                if (absVal >= 10000) return (absVal / 10000).toFixed(0) + 'w';
+                if (absVal >= 1000) return (absVal / 1000).toFixed(0) + 'k';
+                return absVal.toString();
+            }).ticks(6));
+            
+        }
+        
+        d3.selectAll('.metric-btn').on('click', function() {
+            const metric = d3.select(this).attr('data-metric');
+            if (selectedMetrics.includes(metric)) { 
+                if (selectedMetrics.length > 1) selectedMetrics = selectedMetrics.filter(m => m !== metric); 
+            }
+            else selectedMetrics.push(metric);
+            updateChart();
+        });
+        
+        function toggleAll() {
+            if (selectedMetrics.length === 6) selectedMetrics = ['weibo_repost'];
+            else selectedMetrics = [...allMetrics];
+            updateChart();
+        }
+        
+        clickOverlay.on('mousemove', function(event) {
+            const [mx, my] = d3.pointer(event);
+            const date = xScale.domain().find(d => { const x = xScale(d); return mx >= x && mx < x + xScale.bandwidth(); });
+            if (date) {
+                const d = currentData.find(item => item.date === date);
+                if (!d) return;
+                
+                const unselected = allMetrics.filter(m => !selectedMetrics.includes(m));
+                let html = `<div class="tooltip-section"><div class="tooltip-title">📅 ${date}</div></div>`;
+                
+                if (selectedMetrics.length > 0) {
+                    const upperTotal = selectedMetrics.reduce((sum, m) => sum + d[m], 0);
+                    html += `<div class="tooltip-section"><div class="tooltip-title" style="color:#a78bfa;">📈 Upper: ${upperTotal.toLocaleString()}</div>`;
+                    selectedMetrics.forEach(m => { html += `<div class="tooltip-row"><span class="tooltip-label"><span class="color-dot" style="background:${colors[m]}"></span>${metricNames[m]}</span><span class="tooltip-value">${d[m].toLocaleString()}</span></div>`; });
+                    html += `</div>`;
+                }
+                
+                if (unselected.length > 0) {
+                    const lowerTotal = unselected.reduce((sum, m) => sum + d[m], 0);
+                    html += `<div class="tooltip-section"><div class="tooltip-title" style="color:#9ca3af;">📉 Lower: ${lowerTotal.toLocaleString()}</div>`;
+                    unselected.forEach(m => { html += `<div class="tooltip-row"><span class="tooltip-label"><span class="color-dot" style="background:${colors[m]}"></span>${metricNames[m]}</span><span class="tooltip-value">${d[m].toLocaleString()}</span></div>`; });
+                    html += `</div>`;
+                }
+                
+                tooltip.html(html).style('left', (event.pageX + 15) + 'px').style('top', (event.pageY - 10) + 'px').style('opacity', 1);
+            }
+        });
+        
+        clickOverlay.on('mouseleave', function() {
+            tooltip.style('opacity', 0);
+        });
+        
+        updateChart();
+    </script>
+</body>
+</html>
+

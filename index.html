@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demumu | STATS 401</title>
+  <style>
+    :root{
+      --bg:#0b0f17;
+      --panel:#111827;
+      --card:#0f172a;
+      --border:rgba(255,255,255,.08);
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --shadow: 0 12px 30px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:var(--text);background:radial-gradient(1200px 700px at 20% 10%, rgba(59,130,246,.18), transparent 55%),radial-gradient(1000px 600px at 80% 20%, rgba(34,197,94,.16), transparent 55%),var(--bg)}
+    a{color:inherit;text-decoration:none}
+    .app{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+    .sidebar{padding:22px 18px;border-right:1px solid var(--border);background:linear-gradient(180deg, rgba(17,24,39,.92), rgba(11,15,23,.92));backdrop-filter: blur(10px);position:sticky;top:0;height:100vh;overflow:auto}
+    .brand{display:flex;gap:10px;align-items:center;margin-bottom:16px}
+    .dot{width:12px;height:12px;border-radius:999px;background:linear-gradient(135deg,#ef4444,#22c55e)}
+    .title{font-weight:800;letter-spacing:.2px}
+    .subtitle{color:var(--muted);font-size:12px;line-height:1.35}
+    .nav{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+    .nav a{padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.03)}
+    .nav a:hover{background:rgba(255,255,255,.06)}
+    .nav .small{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.45}
+    .content{padding:22px 18px 40px}
+    .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+    .topbar h1{margin:0;font-size:20px}
+    .topbar p{margin:6px 0 0;color:var(--muted);font-size:13px;max-width:900px;line-height:1.45}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+    .card{grid-column:span 12;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.20)}
+    .card-head .h{font-weight:700}
+    .card-head .meta{color:var(--muted);font-size:12px}
+    .card-head .actions{display:flex;gap:8px;align-items:center}
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:12px;color:var(--muted)}
+    .open{padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(59,130,246,.16);font-size:12px}
+    iframe{width:100%;border:0;display:block;background:#fff}
+    .h720{height:720px}
+    .h760{height:760px}
+    .h620{height:620px}
+    .h560{height:560px}
+    .h820{height:820px}
+
+    /* responsive */
+    @media (max-width: 980px){
+      .app{grid-template-columns:1fr}
+      .sidebar{position:relative;height:auto}
+      .grid{grid-template-columns:1fr}
+    }
+    @media (min-width: 1100px){
+      .card.span6{grid-column:span 6}
+      .card.span7{grid-column:span 7}
+      .card.span5{grid-column:span 5}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="dot"></div>
+        <div>
+          <div class="title">Weibo × Xiaohongshu</div>
+          <div class="subtitle">STATS 401 · Duke Kunshan University</div>
+        </div>
+      </div>
+
+      <div class="subtitle">
+        Explore engagement and discourse about the Demumu (死了么) app on Weibo and Xiaohongshu.
+      </div>
+
+      <nav class="nav" aria-label="Dashboard navigation">
+        <a href="#v1">Engagement timeline</a>
+        <a href="#v2">Location–topic network</a>
+        <a href="#v3">Geographic influence network</a>
+        <a href="#v4">Sentiment word cloud</a>
+        <a href="#v5">Platform keywords</a>
+        
+      </nav>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div>
+          <h1>Visualizing Social Discourse around Demumu</h1>
+          <p>Integrated views for exploring cross-platform discourse: keyword prominence, sentiment cues, topical structure, and interaction patterns.</p>
+        </div>
+        
+      </div>
+
+      <div class="grid">
+
+        <section class="card" id="v1">
+          <div class="card-head">
+            <div>
+              <div class="h">Cross-platform engagement</div>
+              <div class="meta">Daily engagement by platform and metric</div>
+            </div>
+            <div class="actions">
+              <a class="open" href="visualization_1.html" target="_blank" rel="noopener">Open</a>
+            </div>
+          </div>
+          <iframe title="Chart visualization_1.html" class="h820" src="visualization_1.html" loading="lazy"></iframe>
+        </section>
+
+        <section class="card span6" id="v2">
+          <div class="card-head">
+            <div>
+              <div class="h">Location–topic network</div>
+              <div class="meta">Filter topic connections by sentiment</div>
+            </div>
+            <div class="actions">
+              <a class="open" href="visualization_2.html" target="_blank" rel="noopener">Open</a>
+            </div>
+          </div>
+          <iframe title="Chart visualization_2.html" class="h620" src="visualization_2.html" loading="lazy"></iframe>
+        </section>
+
+        <section class="card span6" id="v3">
+          <div class="card-head">
+            <div>
+              <div class="h">Geographic influence network</div>
+              <div class="meta">Explore regional communities and bridge connections</div>
+            </div>
+            <div class="actions">
+              <a class="open" href="visualization_3.html" target="_blank" rel="noopener">Open</a>
+            </div>
+          </div>
+          <iframe title="Chart visualization_3.html" class="h620" src="visualization_3.html" loading="lazy"></iframe>
+        </section>
+
+        <section class="card span7" id="v4">
+          <div class="card-head">
+            <div>
+              <div class="h">Sentiment word cloud</div>
+              <div class="meta">Compare aggregate term sentiment by source</div>
+            </div>
+            <div class="actions">
+              <a class="open" href="visualization_4.html" target="_blank" rel="noopener">Open</a>
+            </div>
+          </div>
+          <iframe title="Chart visualization_4.html" class="h760" src="visualization_4.html" loading="lazy"></iframe>
+        </section>
+
+        <section class="card span5" id="v5">
+          <div class="card-head">
+            <div>
+              <div class="h">Platform keywords</div>
+              <div class="meta">TF-IDF across three text sources</div>
+            </div>
+            <div class="actions">
+              <a class="open" href="visualization_5.html" target="_blank" rel="noopener">Open</a>
+            </div>
+          </div>
+          <iframe title="Chart visualization_5.html" class="h760" src="visualization_5.html" loading="lazy"></iframe>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

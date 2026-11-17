@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Word Cloud</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/d3-cloud@1.2.7/build/d3.layout.cloud.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; height: 100vh; overflow: hidden; }
+    header { background: white; padding: 6px 10px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    h1 { font-size: 12px; color: #333; }
+    .sub { font-size: 9px; color: #666; }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    .select { font-size: 10px; color: #555; }
+    .select select { font-size: 10px; padding: 2px 4px; border: 1px solid #ddd; border-radius: 3px; margin-left: 3px; }
+    main { padding: 6px; height: calc(100vh - 32px); }
+    .card { background: white; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); height: 100%; padding: 6px; display: flex; flex-direction: column; }
+    .cloud-layout { display: flex; flex: 1; gap: 6px; min-height: 0; }
+    .cloud-main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+    #cloud { width: 100%; height: 100%; }
+    .hint { font-size: 8px; color: #999; text-align: center; margin-top: 2px; flex-shrink: 0; }
+    .legend-card { width: 50px; background: #f8f9fa; border-radius: 4px; padding: 6px 4px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+    .legend-title { font-size: 9px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .legend-bar { width: 10px; height: 60px; background: linear-gradient(to top, #ff6b6b, #667eea, #51cf66); border-radius: 2px; }
+    .legend-labels { display: flex; flex-direction: column; justify-content: space-between; height: 60px; font-size: 8px; color: #666; margin-left: 4px; }
+    .legend-row { display: flex; align-items: center; }
+    .tooltip { position: fixed; background: white; border-radius: 6px; box-shadow: 0 3px 15px rgba(0,0,0,0.2); padding: 8px; max-width: 250px; max-height: 200px; overflow-y: auto; z-index: 1000; }
+    .tooltip-title { font-weight: 600; font-size: 11px; color: #333; margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
+    .tooltip-body { font-size: 10px; color: #555; line-height: 1.3; }
+    .tooltip-meta { font-size: 9px; color: #888; margin-bottom: 2px; }
+    .tooltip-text { font-size: 10px; color: #333; }
+    .btn { padding: 3px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; background: #667eea; color: white; margin-top: 6px; }
+    .tooltip-foot { text-align: right; }
+    /* Hide scrollbars */
+    ::-webkit-scrollbar { display: none; }
+    * { scrollbar-width: none; -ms-overflow-style: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Word Cloud</h1>
+      <div class="sub">Red=Neg, Blue=Neu, Green=Pos</div>
+    </div>
+    <div class="controls">
+      <label class="select">Source:<select id="source"><option value="comments">Weibo Cmt</option><option value="weibo">Weibo Post</option><option value="xiaohongshu">XHS</option></select></label>
+      <label class="select">N:<select id="topN"><option>50</option><option selected>80</option><option>120</option></select></label>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="cloud-layout">
+        <div class="cloud-main">
+          <svg id="cloud"></svg>
+          <div class="hint">Size=freq, Color=sentiment</div>
+        </div>
+        <aside class="legend-card">
+          <div class="legend-title">Sent</div>
+          <div class="legend-row">
+            <div class="legend-bar"></div>
+            <div class="legend-labels"><div>Pos</div><div>Neu</div><div>Neg</div></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <div id="tooltip" class="tooltip" style="display:none;">
+    <div class="tooltip-title"></div>
+    <div class="tooltip-body"></div>
+    <div class="tooltip-foot"><button class="btn" onclick="hideTooltip()">Close</button></div>
+  </div>
+
+  <script>
+    const COL_NEG = d3.rgb(255, 107, 107);
+    const COL_NEU = d3.rgb(102, 126, 234);
+    const COL_POS = d3.rgb(81, 207, 102);
+    const state = { source: 'comments', topN: 80, data: {} };
+    function blend3(score) {
+      if (score <= 0) return d3.interpolateRgb(COL_NEG, COL_NEU)(score + 1);
+      return d3.interpolateRgb(COL_NEU, COL_POS)(score);
+    }
+    
+    function drawCloud() {
+      const svg = d3.select("#cloud");
+      svg.selectAll("*").remove();
+      
+      const container = document.querySelector('.cloud-main');
+      const W = Math.max(container.clientWidth, 200);
+      const H = Math.max(container.clientHeight - 15, 150);
+      
+      svg.attr("width", W).attr("height", H);
+      
+      const words = (state.data[state.source] || []).slice(0, state.topN);
+      
+      if (!words.length) {
+        svg.append("text").attr("x", W/2).attr("y", H/2).attr("text-anchor", "middle").attr("fill", "#666").attr("font-size", "12px").text("No data");
+        return;
+      }
+      
+      const [minV, maxV] = d3.extent(words, d => d.value);
+      const sizeScale = d3.scaleLinear().domain([minV, maxV]).range([10, Math.min(50, H/6)]);
+      
+      const wordsWithColor = words.map(d => ({ ...d, size: sizeScale(d.value), color: blend3(d.sentAvg) }));
+      
+      const layout = d3.layout.cloud()
+        .size([W, H])
+        .words(wordsWithColor)
+        .padding(1)
+        .rotate(() => 0)
+        .font("sans-serif")
+        .fontSize(d => d.size)
+        .on("end", draw);
+      
+      layout.random(() => 0.42);
+      layout.start();
+      
+      function draw(cloudWords) {
+        const g = svg.append("g").attr("transform", `translate(${W/2},${H/2})`).style("opacity", 0);
+        g.selectAll("text").data(cloudWords).join("text")
+          .style("font-size", d => `${d.size}px`).style("font-family", "sans-serif")
+          .attr("text-anchor", "middle")
+          .attr("transform", d => `translate(${d.x},${d.y}) rotate(${d.rotate})`)
+          .attr("fill", d => d.color).style("cursor", "pointer")
+          .text(d => d.text)
+          .on("click", (e, d) => showTooltip(e, d));
+        g.transition().duration(200).style("opacity", 1);
+      }
+    }
+    
+    function showTooltip(evt, wordData) {
+      const tt = document.getElementById('tooltip');
+      tt.querySelector('.tooltip-title').textContent = `「${wordData.text}」`;
+      tt.querySelector('.tooltip-body').textContent = `Weighted frequency ${wordData.value.toFixed(1)} · Sentiment ${wordData.sentAvg.toFixed(2)}`;
+      tt.style.display = 'block';
+      const rect = tt.getBoundingClientRect();
+      let x = Math.min(evt.clientX + 10, window.innerWidth - rect.width - 10);
+      let y = Math.min(evt.clientY + 10, window.innerHeight - rect.height - 10);
+      tt.style.left = x + 'px';
+      tt.style.top = y + 'px';
+    }
+    
+    function hideTooltip() { document.getElementById('tooltip').style.display = 'none'; }
+    document.addEventListener('mousedown', (e) => {
+      const tt = document.getElementById('tooltip');
+      if (tt && !tt.contains(e.target) && !e.target.closest('#cloud')) hideTooltip();
+    });
+    
+    async function init() {
+      const { cloudScores } = await fetch('./term-statistics.json').then(response => response.json());
+      state.data = cloudScores;
+
+      document.getElementById('source').addEventListener('change', (e) => { state.source = e.target.value; drawCloud(); });
+      document.getElementById('topN').addEventListener('change', (e) => { state.topN = +e.target.value; drawCloud(); });
+      
+      drawCloud();
+      
+      const ro = new ResizeObserver(() => drawCloud());
+      ro.observe(document.querySelector('.cloud-main'));
+    }
+    
+    init();
+  </script>
+</body>
+</html>
